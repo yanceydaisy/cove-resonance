@@ -244,6 +244,10 @@ ChatGPT
 
 **[docs/MINIMAL_LISTENER_PROTOCOL.md](docs/MINIMAL_LISTENER_PROTOCOL.md)**
 
+实验性 long-wait MCP Listener（用于 Host 对 `ui/message` 有限制时的替代路线）：
+
+**[docs/LONG_WAIT_MCP_EXPERIMENT.zh-CN.md](docs/LONG_WAIT_MCP_EXPERIMENT.zh-CN.md)**
+
 ---
 
 ## 想让你的小机学会我们的底层思路
