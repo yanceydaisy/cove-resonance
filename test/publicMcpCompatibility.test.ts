@@ -78,6 +78,7 @@ test("legacy and scoped endpoints both keep the Music V2 tool surface", async ()
     "cove_bridge_delivered",
     "cove_bridge_dismissed",
     "cove_bridge_release",
+    "cove_bridge_wait",
   ];
   await withServer(async (base) => {
     for (const path of ["/mcp", "/mcp/music"]) {

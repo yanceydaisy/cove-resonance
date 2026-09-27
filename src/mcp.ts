@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerBridgeApp } from "./bridge/registerApp.js";
 import { registerBridgeTools } from "./bridge/registerTools.js";
+import { registerBridgeWaitTool } from "./bridge/registerWaitTool.js";
 import { acceptsProfileSource, buildProfileInstructions, type McpProfile } from "./profiles.js";
 import { registerNeteaseAccountTools } from "./netease/accountTools.js";
 import { NeteaseClient } from "./netease/client.js";
@@ -29,6 +30,7 @@ export function createMcpServer(
   registerBridgeApp(server);
   registerNeteaseTogetherTools(server, playbackState, togetherWorker, queue, eventFilter);
   registerBridgeTools(server, queue, eventFilter, togetherWorker);
+  registerBridgeWaitTool(server, queue, eventFilter);
 
   return server;
 }
