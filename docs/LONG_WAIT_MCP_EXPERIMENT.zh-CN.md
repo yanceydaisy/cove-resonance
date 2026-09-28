@@ -112,7 +112,12 @@ wait
 
 ## 与 Widget Listener 的关系
 
-**不要同时运行。** 两者都会从同一个 Queue reserve event，同时运行会形成 competing consumers。一次监听只选一种路径。
+V2 把两条路线都视为 **正式可用的监听方式**，部署时二选一。
+
+| 路线 | 最后一跳 | 截至 2026-09-28 的 ChatGPT 实测 |
+| --- | --- | --- |
+| Widget Listener | `ui/message` 主动投进对话 | 网页端需要人工确认；桌面端当前不可用；手机端（iOS）可用 |
+| Long-wait MCP | 正在运行的 MCP tool call 返回事件 | 网页端、桌面端、手机端均已跑通 |
 
 Widget 更像：
 
@@ -122,11 +127,13 @@ Long-wait 更像：
 
 > 把一个已经开始的 turn 挂成等待外部事件的值班窗口。
 
-两条路线解决的是不同 Host 能力边界。
+Long-wait 的优势是 **不依赖 `ui/message`**，因此当前多端兼容性更好；代价是它不能在“完全没有模型 turn”时凭空启动一个新 turn。
+
+**不要同时运行两条路线。** 两者都会从同一个 Queue reserve event，同时开启会形成 competing consumers。
 
 ## 2026-09-28 真实 Host 验收
 
-已经在 **真实 ChatGPT Host + 正式 Cove Bridge 服务 + 真实网易云一起听房间 + 手机网易云官端** 验证：
+已经在 **真实 ChatGPT Host + 正式 Cove Bridge 服务 + 真实网易云一起听房间 + 手机网易云官端** 验证；Long-wait 本身也已经在 ChatGPT 网页端、桌面端和手机端跑通：
 
 - pending event 会立即返回；
 - 空队列会按 45 秒 timeout 返回；
