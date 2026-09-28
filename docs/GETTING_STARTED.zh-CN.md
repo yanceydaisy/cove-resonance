@@ -337,15 +337,17 @@ cove_bridge_wait
 
 ```text
 wait
-→ ACK
+→ cove_bridge_wait_ack
 → 处理事件
-→ 如有 required reply 则沿原路回复
+→ 如有 required reply 则 cove_bridge_reply
 → next wait
 ```
 
+如果上一条必须回复的消息还没有完成返程回复，下一次 wait 会先停在当前消息，不会越过它去取下一条。
+
 截至 2026-09-28，Long-wait 已在 **网页端、桌面端和手机端**完成实测。
 
-> Long-wait 兼容性更好，但它不是无限后台常驻：必须先有一个正在运行的模型 turn，Host 也可能存在更高层的总时长限制。
+> Long-wait 兼容性更好，但它不是无限后台常驻：必须先有一个正在运行的模型 turn，Host 也可能存在更高层的总时长限制。45 秒 timeout 本身是正常边界；只要用户仍明确要求继续监听，就可以继续下一轮 wait。
 
 ### 怎么选
 
