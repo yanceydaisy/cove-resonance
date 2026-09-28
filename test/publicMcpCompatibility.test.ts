@@ -100,5 +100,3 @@ test("stable widget resource URI is preserved", async () => {
     }
   });
 });
-
-[executed on device: cove-staging-01 (4aa9e179-3da1-4c6f-be69-de3e7ddb1057)]
