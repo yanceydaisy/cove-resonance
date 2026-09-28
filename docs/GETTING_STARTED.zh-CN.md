@@ -15,27 +15,48 @@
 
 ---
 
-## 1. 先理解三个组件
+## 1. 先理解 Bridge 和两种监听路线
 
 ### Bridge
 
 Bridge 是服务端核心，负责：
 
-- 接收网易云 NIM ChatRoom 事件；
+- 接收网易云 NIM ChatRoom 和播放状态事件；
 - 把事件放进 Conversation / State 队列；
-- 给 Listener 发 SSE wake；
-- 把事件通过 MCP tool 交给 Listener；
-- 记录 reply route；
+- 维护事件身份、去重、ACK、reply route 和 backpressure；
 - 把 ChatGPT 回复重新发送回网易云。
 
-### Listener
+### 路线 A：Widget Listener
 
-Listener 是一个 MCP App Widget。
+Widget Listener 是一个 MCP App Widget。
 
-它不会自己生成回复。它只做两件事：
+它收到 wake 后从 Bridge 取事件，再通过 `ui/update-model-context` 和 `ui/message` 把事件主动投进当前 ChatGPT 对话。
 
-1. 收到 SSE wake 后调用 `cove_bridge_sync`；
-2. 将取到的事件依次通过 `ui/update-model-context` 和 `ui/message` 投进当前 ChatGPT 对话。
+它更像：
+
+> 外部世界发生了事情，主动来敲 ChatGPT 的门。
+
+### 路线 B：Long-wait MCP
+
+Long-wait 不走 `ui/message`。
+
+用户先在 ChatGPT 中明确开始监听，模型调用 `cove_bridge_wait` 保持等待；未来事件到达后，这次 MCP tool call 返回，当前模型 turn 继续处理。
+
+它更像：
+
+> ChatGPT 已经有人值班，挂着等外面的事情发生。
+
+**正式部署时两条路线二选一，不要同时运行。** 两者会消费同一个 Bridge Queue，同时开启会形成 competing consumers。
+
+截至 **2026-09-28** 的项目实测：
+
+| ChatGPT 客户端 | Widget Listener | Long-wait MCP |
+| --- | --- | --- |
+| 网页端 | 可连接，但 `ui/message` 会出现人工确认弹窗 | 可用 |
+| 桌面端 | 这条 Widget 投递路线实测不可用 | 可用 |
+| 手机端（iOS） | 可用 | 可用 |
+
+因此如果你需要 **网页 / 桌面 / 手机多端切换**，优先推荐 Long-wait MCP；如果你主要在手机端使用，或明确希望保留 Widget 的“外部事件主动敲门”体验，也可以选择 Widget Listener。
 
 ### NetEase Together Worker
 
@@ -46,9 +67,9 @@ Worker 负责网易云「一起听」侧：
 - 收取房间文本；
 - 发送回复；
 - 读取当前歌曲、播放状态和歌词；
-- 以 NIM realtime 为播放状态主数据源，并在断线时回退到 HTTP reconcile；
-- 执行 PAUSE / PLAY / GOTO / NEXT，并等待 realtime 确认；
-- 修改 Together `displayList`，并通过 playlist 回读确认队列变更；
+- 以 NIM realtime 为播放状态主数据源，并在断线时回退到 HTTP 校准；
+- 暂停、继续播放、切到指定歌曲、播放下一首，并等待网易云实时回执确认；
+- 把歌曲插到下一首，并通过重新读取播放队列确认修改真的生效；
 - 为模型补充完整歌词上下文。
 
 ---
@@ -260,7 +281,7 @@ journalctl -u cove-resonance -f
 
 ---
 
-## 8. 在 ChatGPT 中连接
+## 8. 在 ChatGPT 中连接并选择监听方式
 
 在支持 MCP Apps 的 ChatGPT 环境中添加你的 MCP server。新部署推荐：
 
@@ -268,7 +289,7 @@ journalctl -u cove-resonance -f
 https://bridge.example.com/mcp/music
 ```
 
-已有部署继续使用下面这个旧入口也完全兼容：
+已有部署继续使用下面这个兼容入口也可以：
 
 ```text
 https://bridge.example.com/mcp
@@ -276,27 +297,63 @@ https://bridge.example.com/mcp
 
 然后在目标对话里挂载 Cove Resonance。
 
-Bridge Widget 默认是静止状态，不会自动监听。
+接下来 **只选一种监听方式**。
 
-点击：
+### 方式 A：Widget Listener
+
+打开 Bridge Widget，点击：
 
 ```text
 开始监听
 ```
 
-正常时状态应变成：
+正常时会显示：
 
 ```text
 SSE 实时监听中。
 ```
 
-空闲时：
+Widget 使用 SSE wake + 低频 fallback poll，然后通过 `ui/message` 把事件主动送进对话。
+
+截至 2026-09-28 的实测：
+
+- **网页端**：会出现 Host 的人工确认弹窗，需要手动确认这次 `ui/message`；
+- **桌面端**：当前这条 Widget 投递路线实测不可用；
+- **手机端（iOS）**：可用。
+
+### 方式 B：Long-wait MCP
+
+不需要启动 Widget Listener。
+
+直接在目标对话中明确让 ChatGPT 开始监听。模型会调用：
 
 ```text
-SSE 实时监听中，暂无新事件。
+cove_bridge_wait
 ```
 
-如果 SSE 暂时断开，Widget 会自动重连，同时保留 60 秒 fallback poll。
+单次最多等待 45 秒；timeout 不是失败。如果用户仍明确要求继续监听，模型可以继续下一轮 wait。
+
+事件到达后：
+
+```text
+wait
+→ ACK
+→ 处理事件
+→ 如有 required reply 则沿原路回复
+→ next wait
+```
+
+截至 2026-09-28，Long-wait 已在 **网页端、桌面端和手机端**完成实测。
+
+> Long-wait 兼容性更好，但它不是无限后台常驻：必须先有一个正在运行的模型 turn，Host 也可能存在更高层的总时长限制。
+
+### 怎么选
+
+- 想要更好的多端兼容：**Long-wait MCP**
+- 主要在手机端使用，并喜欢“外部事件主动敲门”：**Widget Listener**
+- 不确定：先用 **Long-wait MCP**
+
+**不要同时开启 Widget Listener 和 Long-wait。**
 
 ---
 
@@ -308,21 +365,35 @@ SSE 实时监听中，暂无新事件。
 Cove Bridge test 001
 ```
 
-在网易云一起听 ChatRoom 发送后，应该出现：
+在网易云一起听 ChatRoom 发送后，根据你选择的监听方式，会走不同的最后一段：
+
+### Widget Listener
 
 ```text
 网易云
   ↓ NIM realtime
 Bridge Conversation Stream
   ↓ SSE wake
-Listener
+Widget Listener
   ↓ ui/message
 ChatGPT 当前对话
 ```
 
-不同 ChatGPT Host 对 `ui/message` 的交互可能不同：有的 Host 会直接投递，有的 Host 会要求用户确认。这个差异属于 Host 能力，不是 Bridge 协议本身。
+网页端当前会出现人工确认弹窗；手机端实测可以正常走通。若用户取消确认，Listener 会调用 `cove_bridge_dismissed`，事件进入 terminal 状态，不会反复复活。
 
-如果 Host 已经把 `ui/message` 交给用户确认，而用户选择取消，Listener 会调用 `cove_bridge_dismissed`。该事件随后进入 terminal 状态，不再 release、不再复活，也不会继续占住 required-reply backpressure。
+### Long-wait MCP
+
+```text
+网易云
+  ↓ NIM realtime
+Bridge Queue
+  ↓ cove_bridge_wait 返回
+ChatGPT 当前模型 turn
+  ↓ ACK / reply
+继续下一轮 wait
+```
+
+这条路线不经过 `ui/message`，因此不依赖 Widget 的 Host 投递行为。
 
 如果该事件需要回复，模型应调用：
 
@@ -524,9 +595,10 @@ npm run build
 
 - NIM 收到同一个 `messageId` 多次；
 - 某个 event 在 delivered 前反复 release；
-- 同时开了多个 Listener。
+- 同时开了多个 Listener；
+- 同时开启了 Widget Listener 和 Long-wait。
 
-当前版本已有 NIM messageId 去重和 Widget eventId 去重，但不要同时启动多个独立 Listener 去消费同一个队列。
+当前版本已有入口和事件级去重，但正式使用时仍应保证 **一次只启用一种监听路线**。
 
 ### SSE 一直重连
 
