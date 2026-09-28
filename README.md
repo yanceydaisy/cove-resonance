@@ -30,9 +30,9 @@ Cove Resonance 让 AI 留在 ChatGPT、用户留在原本的应用里，中间�
 
 **[docs/V2.zh-CN.md](docs/V2.zh-CN.md)**
 
-Long-wait 细节：
+Listener / Long-wait 的技术细节：
 
-**[docs/LONG_WAIT_MCP_EXPERIMENT.zh-CN.md](docs/LONG_WAIT_MCP_EXPERIMENT.zh-CN.md)**
+**[docs/ARCHITECTURE_FOR_AGENTS.zh-CN.md](docs/ARCHITECTURE_FOR_AGENTS.zh-CN.md)**
 
 ## 已实现
 
@@ -84,9 +84,9 @@ V2 有两种正式监听方式，**二选一，不要同时开启**：
 
 **[docs/GETTING_STARTED.zh-CN.md](docs/GETTING_STARTED.zh-CN.md)**
 
-最小 Listener 协议：
+架构与实现说明：
 
-**[docs/MINIMAL_LISTENER_PROTOCOL.md](docs/MINIMAL_LISTENER_PROTOCOL.md)**
+**[docs/ARCHITECTURE_FOR_AGENTS.zh-CN.md](docs/ARCHITECTURE_FOR_AGENTS.zh-CN.md)**
 
 ```bash
 git clone https://github.com/yanceydaisy/cove-resonance.git
