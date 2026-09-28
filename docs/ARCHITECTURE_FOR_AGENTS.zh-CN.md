@@ -70,10 +70,13 @@ Bridge Core
   └─ SSE Wake Hub
 
 Host Adapter
-  └─ MCP App Listener Widget
-      ├─ tools/call
-      ├─ ui/update-model-context
-      └─ ui/message
+  ├─ MCP App Widget Listener
+  │   ├─ tools/call
+  │   ├─ ui/update-model-context
+  │   └─ ui/message
+  └─ Long-wait MCP
+      ├─ cove_bridge_wait
+      └─ cove_bridge_wait_ack
 
 Reply Egress
   └─ NIM ChatRoom send
@@ -509,7 +512,22 @@ statePendingByKey
 
 ---
 
-# 5. Listener：先从最小纯轮询开始
+# 5. Listener：V2 有两种正式路线
+
+正式部署时，从下面两种 Host dispatch 方式中 **二选一，不要同时运行**：
+
+| 路线 | 工作方式 | 网页端 | 桌面端 | 手机端（iOS） |
+| --- | --- | --- | --- | --- |
+| Widget Listener | 外部事件到达后，通过 `ui/message` 主动投进对话 | 会出现人工确认 | 当前实测不可用 | 可用 |
+| Long-wait MCP | 已经开始的模型 turn 通过 MCP tool 等待未来事件 | 可用 | 可用 | 可用 |
+
+上表是截至 **2026-09-28** 的项目实测。
+
+如果需要跨网页 / 桌面 / 手机保持统一行为，当前优先推荐 Long-wait；如果主要在手机端使用，并希望保留“外部事件主动敲门”的体验，可以选择 Widget Listener。
+
+两者共用同一个 Bridge Queue，同时开启会形成 competing consumers。
+
+## 5.1 Widget / Host-injection：最小纯轮询基线
 
 核心文件：
 
@@ -518,7 +536,7 @@ src/listener-html.ts
 src/listenerWake.ts
 ```
 
-Listener 是 Host Adapter。
+Widget Listener 是 Host Adapter 的一种实现。
 
 它不是业务逻辑中心，也**不要求必须支持 SSE**。
 
