@@ -552,9 +552,58 @@ Widget Listener 是 Host Adapter 的一种实现。
 
 也就是说，**纯轮询就是可移植基线**。SSE / WebSocket / Push 都只是后面的延迟优化。
 
-更完整、可以直接交给编码 Agent 的最小协议见：
+Widget / Host-injection 路线的最小正确性协议就是：
 
-**[MINIMAL_LISTENER_PROTOCOL.md](MINIMAL_LISTENER_PROTOCOL.md)**
+```text
+sync / reserve
+→ hidden context
+→ visible message
+→ delivered / dismissed / release
+```
+
+Host 本地至少要记住两类 eventId：
+
+```text
+recentlyDispatched
+pendingAcks
+```
+
+已经显示过的事件如果 ACK 失败，只能重试 ACK，绝不能重新显示。
+
+参考伪代码：
+
+```ts
+async function tick() {
+  await flushPendingAcks()
+
+  const result = await bridge.call("cove_bridge_sync", {})
+  const event = result.meta?.event
+  if (!event) return
+
+  if (recentlyDispatched.has(event.id)) {
+    pendingAcks.add(event.id)
+    return flushPendingAcks()
+  }
+
+  try {
+    await host.updateModelContext(event.modelContext)
+    const handoff = await host.injectUserMessage(event.visibleText)
+
+    if (handoff.outcome === "dismissed") {
+      await bridge.call("cove_bridge_dismissed", { eventId: event.id })
+      return
+    }
+  } catch (error) {
+    // 只有在 Host 尚未接管消息时才允许 release。
+    await bridge.call("cove_bridge_release", { eventId: event.id })
+    throw error
+  }
+
+  recentlyDispatched.add(event.id)
+  pendingAcks.add(event.id)
+  await flushPendingAcks()
+}
+```
 
 ## 5.2 Level 0：手动 sync
 
@@ -639,9 +688,25 @@ Long-wait 不调用 `ui/message`。它让一个已经开始的模型 turn 等待
 
 它解决的是 Host dispatch 限制，不是后台常驻问题。没有运行中的模型 turn 时，Long-wait 不会凭空启动新 turn。
 
-更完整说明见：
+单次 wait 当前最多 **45 秒**。timeout 是正常边界，不代表监听意图失败；用户仍明确要求继续监听时，可以继续下一轮。
 
-**[LONG_WAIT_MCP_EXPERIMENT.zh-CN.md](LONG_WAIT_MCP_EXPERIMENT.zh-CN.md)**
+事件到达后的完整事务：
+
+```text
+pending
+→ reserve
+→ cove_bridge_wait 返回 event
+→ cove_bridge_wait_ack(eventId)
+→ 处理 modelContext / visibleText
+→ required cove_bridge_reply（如有）
+→ next wait
+```
+
+模型侧 ACK 使用 `cove_bridge_wait_ack`。Widget Listener 仍使用 app-only delivered 路径，二者不要混用 ACK 责任。
+
+如果上一条 required event 还没有完成 routed reply，下一次 wait 会立即返回 `awaitingReply=true`，不能绕过 backpressure 去取下一条。
+
+取消中的 wait、timeout、Host 更高层总时长限制都不改变一个原则：Long-wait 只是替换 Host dispatch，不绕开 Queue、reservation、ACK、reply route、去重或 backpressure。
 
 ---
 
@@ -832,6 +897,22 @@ cove_bridge_dismissed(eventId)
 ---
 
 # 10. Host 兼容层怎么改
+
+新 Host 的推荐适配顺序：
+
+```text
+1. 手动 sync / wait
+2. 确认 Queue reservation
+3. hidden context 与 visible message 分层
+4. delivered / dismissed / release 边界
+5. eventId 去重
+6. required reply backpressure
+7. routed reply
+8. 最后再加 SSE / WebSocket / native push
+```
+
+如果 Host 本身不支持可靠的主动消息注入，不要硬做 Widget 路线；直接选择 Long-wait 或实现新的 Host Adapter。
+
 
 如果你的 AI 客户端不是当前 MCP Apps Host，不要硬抄 Widget。
 
