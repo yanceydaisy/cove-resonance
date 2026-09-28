@@ -21,21 +21,20 @@ The NetEase adapter is not the architecture itself.
 
 ## Required reading order
 
-1. `docs/MINIMAL_LISTENER_PROTOCOL.md`
-2. `docs/LONG_WAIT_MCP_EXPERIMENT.zh-CN.md`
-3. `docs/ARCHITECTURE_FOR_AGENTS.zh-CN.md`
-4. `src/types.ts`
-5. `src/queue.ts`
-6. `src/bridge/events.ts`
-7. `src/bridge/registerTools.ts`
-8. `src/bridge/registerApp.ts`
-9. `src/bridge/registerWaitTool.ts`
-10. `src/profiles.ts`
-11. `src/server.ts`
-12. `src/mcp.ts`
-13. `src/listener-html.ts`
-14. `src/netease/registerTogetherTools.ts`
-15. adapter-specific files only after the core is understood
+1. `docs/ARCHITECTURE_FOR_AGENTS.zh-CN.md`
+2. `docs/V2.zh-CN.md`
+3. `src/types.ts`
+4. `src/queue.ts`
+5. `src/bridge/events.ts`
+6. `src/bridge/registerTools.ts`
+7. `src/bridge/registerApp.ts`
+8. `src/bridge/registerWaitTool.ts`
+9. `src/profiles.ts`
+10. `src/server.ts`
+11. `src/mcp.ts`
+12. `src/listener-html.ts`
+13. `src/netease/registerTogetherTools.ts`
+14. adapter-specific files only after the core is understood
 
 ## Core invariants
 
