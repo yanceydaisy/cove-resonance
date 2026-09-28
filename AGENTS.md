@@ -22,18 +22,20 @@ The NetEase adapter is not the architecture itself.
 ## Required reading order
 
 1. `docs/MINIMAL_LISTENER_PROTOCOL.md`
-2. `docs/ARCHITECTURE_FOR_AGENTS.zh-CN.md`
-3. `src/types.ts`
-4. `src/queue.ts`
-5. `src/bridge/events.ts`
-6. `src/bridge/registerTools.ts`
-7. `src/bridge/registerApp.ts`
-8. `src/profiles.ts`
-9. `src/server.ts`
-10. `src/mcp.ts`
-11. `src/listener-html.ts`
-12. `src/netease/registerTogetherTools.ts`
-13. adapter-specific files only after the core is understood
+2. `docs/LONG_WAIT_MCP_EXPERIMENT.zh-CN.md`
+3. `docs/ARCHITECTURE_FOR_AGENTS.zh-CN.md`
+4. `src/types.ts`
+5. `src/queue.ts`
+6. `src/bridge/events.ts`
+7. `src/bridge/registerTools.ts`
+8. `src/bridge/registerApp.ts`
+9. `src/bridge/registerWaitTool.ts`
+10. `src/profiles.ts`
+11. `src/server.ts`
+12. `src/mcp.ts`
+13. `src/listener-html.ts`
+14. `src/netease/registerTogetherTools.ts`
+15. adapter-specific files only after the core is understood
 
 ## Core invariants
 
@@ -51,6 +53,8 @@ Do not violate these without an explicit design decision.
 10. Reply delivery is idempotent through fingerprint + `sentCount` + completion state.
 11. `replyRoute` belongs to the event. The model must not invent a route.
 12. A playback control is not successful merely because an HTTP report returned successfully; wait for authoritative realtime or playlist confirmation.
+13. Widget Listener and Long-wait MCP are alternative consumers of the same Queue. Do not run them concurrently.
+14. Long-wait events use `cove_bridge_wait_ack`; Widget delivery keeps the app-only delivered path. Do not merge the two ACK responsibilities.
 
 ## Layer boundaries
 
@@ -87,6 +91,9 @@ Verified:
 - source message dedupe
 - listener event dedupe
 - backward-compatible `/mcp` plus Music-scoped `/mcp/music`
+- accepted Long-wait MCP path with model-side ACK and required-reply backpressure
+- real ChatGPT Host validation across web, desktop, and mobile for Long-wait
+- authoritative Together leave with post-action room-status confirmation
 
 Still under stability validation:
 
@@ -141,7 +148,14 @@ For a new external platform, implement:
 - source routing
 - egress send
 
-For a new AI client, implement a Host Adapter equivalent to:
+For a new AI client, first choose one of the two dispatch models:
+
+- Widget/Host-injection path: external event wakes the Host, then the Host injects a new message.
+- Long-wait MCP path: an already-running model turn waits for a future event as a tool result.
+
+As of 2026-09-28, the current ChatGPT Widget path requires manual confirmation on web, is not usable on desktop, and works on iOS; Long-wait has been verified on web, desktop, and mobile.
+
+If you choose the Widget/Host-injection path, implement a Host Adapter equivalent to:
 
 - initialize
 - fetch/reserve Bridge event
