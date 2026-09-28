@@ -35,9 +35,9 @@ export function registerBridgeWaitTool(
     {
       title: "Wait for a Cove Resonance event",
       description:
-        "Experimental long-wait Listener alternative. Hold this MCP tool call until a Bridge event becomes available or the timeout expires. " +
+        "Long-wait Listener path. Hold this MCP tool call until a Bridge event becomes available or the timeout expires. " +
         "Use only when the user explicitly asks to start long-wait listening. Do not run this concurrently with the Widget Listener. " +
-        "When hasEvent=true, immediately call cove_bridge_delivered with the returned eventId, then handle the event using modelContext and visibleText. " +
+        "When hasEvent=true, immediately call cove_bridge_wait_ack with the returned eventId, then handle the event using modelContext and visibleText. " +
         "After any required routed reply completes, call cove_bridge_wait again only if the user asked to remain listening.",
       inputSchema: {
         timeoutSeconds: z.number().int().min(1).max(DEFAULT_TIMEOUT_SECONDS).optional(),
@@ -117,7 +117,7 @@ export function registerBridgeWaitTool(
               text: [
                 "COVE RESONANCE LONG-WAIT EVENT",
                 "This event was reserved by cove_bridge_wait.",
-                "Immediately call cove_bridge_delivered with eventId=" + event.id + " before waiting again.",
+                "Immediately call cove_bridge_wait_ack with eventId=" + event.id + " before waiting again.",
                 "",
                 event.modelContext,
                 "",
@@ -147,6 +147,35 @@ export function registerBridgeWaitTool(
 
         await delay(Math.min(POLL_INTERVAL_MS, remainingMs), extra.signal);
       }
+    },
+  );
+
+  server.registerTool(
+    "cove_bridge_wait_ack",
+    {
+      title: "Acknowledge a Cove Resonance long-wait event",
+      description:
+        "Acknowledge an event returned by cove_bridge_wait after the model has accepted it. " +
+        "This is the model-side long-wait acknowledgement path; the existing app-only cove_bridge_delivered tool remains reserved for the Widget Listener.",
+      inputSchema: { eventId: z.string().trim().min(1) },
+      outputSchema: { acknowledged: z.boolean() },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        openWorldHint: false,
+        idempotentHint: true,
+      },
+    },
+    async ({ eventId }) => {
+      const event = queue.getEvent(eventId);
+      if (!event || !eventFilter(event)) {
+        throw new Error(`Unknown Cove Resonance long-wait event: ${eventId}`);
+      }
+      queue.markDelivered(eventId);
+      return {
+        structuredContent: { acknowledged: true },
+        content: [{ type: "text", text: `Acknowledged long-wait event ${eventId}.` }],
+      };
     },
   );
 }

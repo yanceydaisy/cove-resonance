@@ -212,6 +212,8 @@ ChatGPT
 - 回复防重复与中断后续发；
 - Conversation / State 两类事件的基本处理；
 - 最基础 Listener 轮询；
+- Long-wait MCP Listener：`cove_bridge_wait → cove_bridge_wait_ack → routed reply → next wait`；
+- 真实 ChatGPT Host 多轮 45s timeout 后继续等待并被未来事件唤醒；
 - SSE wake、短期单次 Listener session、EventSource Listener；
 - Host 人工确认兼容：取消 `ui/message` 后事件进入 terminal dismissed，不会反复复活；
 - 旧 `/mcp` 入口保持兼容，同时提供隔离的 `/mcp/music` Music profile。
@@ -234,6 +236,26 @@ ChatGPT
 
 ---
 
+## Long-wait：不走 `ui/message` 的另一条正式路径
+
+Widget Listener 仍然保留，但 V2 现在还有第二条投递路径：
+
+```text
+用户明确开始监听
+→ cove_bridge_wait
+→ 外部事件进入 Bridge
+→ wait 返回
+→ cove_bridge_wait_ack
+→ 处理事件 / routed reply
+→ 继续下一次 wait
+```
+
+这条路已经在真实 ChatGPT Host 和真实网易云一起听房间里跑通过，包括多轮 45 秒 timeout、聊天室 required reply、播放状态事件和播放控制后的 realtime 回流。
+
+它仍然不是“无限后台在线”：没有运行中的模型 turn 时，Long-wait 不会凭空创建新 turn；Host 也可能存在更高层的总时长限制。
+
+---
+
 ## 想直接部署
 
 部署教程：
@@ -244,7 +266,7 @@ ChatGPT
 
 **[docs/MINIMAL_LISTENER_PROTOCOL.md](docs/MINIMAL_LISTENER_PROTOCOL.md)**
 
-实验性 long-wait MCP Listener（用于 Host 对 `ui/message` 有限制时的替代路线）：
+Long-wait MCP Listener（V2 已完成真实 Host 验收，用于 Host 对 `ui/message` 有限制时的替代路线）：
 
 **[docs/LONG_WAIT_MCP_EXPERIMENT.zh-CN.md](docs/LONG_WAIT_MCP_EXPERIMENT.zh-CN.md)**
 

@@ -131,6 +131,42 @@ export class TogetherWorker {
     return await this.realtime.sendChatRoomText(text);
   }
 
+  async leaveTogether(): Promise<{
+    ok: true;
+    ended: boolean;
+    alreadyOut: boolean;
+    roomId: string | null;
+    confirmedAt: string;
+  }> {
+    const remote = await this.client.getRoomStatus();
+    if (!remote.inRoom || !remote.roomId) {
+      this.leaveRoom("一起听已经结束了。我会继续等你的下一次邀请。");
+      return {
+        ok: true,
+        ended: false,
+        alreadyOut: true,
+        roomId: null,
+        confirmedAt: new Date().toISOString(),
+      };
+    }
+
+    const roomId = remote.roomId;
+    await this.client.endRoom(roomId);
+    const confirmed = await this.client.getRoomStatus();
+    if (confirmed.inRoom) {
+      throw new Error("NetEase Together leave was not confirmed by authoritative room status.");
+    }
+
+    this.leaveRoom("一起听已退出。我会继续等你的下一次邀请。");
+    return {
+      ok: true,
+      ended: true,
+      alreadyOut: false,
+      roomId,
+      confirmedAt: new Date().toISOString(),
+    };
+  }
+
   async pausePlayback(): Promise<PlaybackControlResult> {
     return await this.controlPlayback("PAUSE");
   }

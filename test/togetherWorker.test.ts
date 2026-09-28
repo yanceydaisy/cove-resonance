@@ -989,3 +989,14 @@ test("GOTO rejects a target outside the current Together displayList before repo
   );
   assert.equal(reported, false);
 });
+
+test("leaveTogether ends the authoritative room and clears local room state after confirmation", async () => {
+  const events: Array<{ source: string; text: string }> = [];
+  const worker = new TogetherWorker({
+    cookie: "",
+    enabled: false,
+    onEvent: (source, text) => events.push({ source, text }),
+  });
+
+
+[executed on device: cove-staging-01 (4aa9e179-3da1-4c6f-be69-de3e7ddb1057)]

@@ -326,6 +326,10 @@ export class NeteaseClient {
     };
   }
 
+  async endRoom(roomId: string): Promise<void> {
+    await this.call("listentogether_end", { roomId });
+  }
+
   async getRealtimeCredentials(): Promise<RealtimeCredentials> {
     const operation = "middle_im_token_get";
     const url = new URL("https://interface3.music.163.com/api/middle/im/token/get");

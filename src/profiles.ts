@@ -23,8 +23,8 @@ export function buildProfileInstructions(profile: McpProfile): string {
     "A reply written only in the ChatGPT conversation does NOT satisfy a required routed reply.",
     "Do not use netease_together_send_message directly for a routed reply.",
     "For replyPolicy=optional, call cove_bridge_reply only when you choose to send a user-facing reaction.",
-    "LONG-WAIT MODE is experimental and opt-in. Only when the user explicitly asks to start long-wait listening, call cove_bridge_wait. Do not run it concurrently with the Widget Listener.",
-    "When cove_bridge_wait returns hasEvent=true, immediately call cove_bridge_delivered with the returned eventId, then handle modelContext + visibleText as the current Bridge event. Complete any required cove_bridge_reply before waiting again.",
+    "LONG-WAIT MODE is opt-in. Only when the user explicitly asks to start long-wait listening, call cove_bridge_wait. Do not run it concurrently with the Widget Listener.",
+    "When cove_bridge_wait returns hasEvent=true, immediately call cove_bridge_wait_ack with the returned eventId, then handle modelContext + visibleText as the current Bridge event. Complete any required cove_bridge_reply before waiting again.",
     "A timedOut long-wait result is normal. Call cove_bridge_wait again only while the user has explicitly asked to keep listening; do not create an unsolicited permanent tool loop.",
   ].join("\n");
 }

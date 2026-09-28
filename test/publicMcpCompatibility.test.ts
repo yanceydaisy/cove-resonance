@@ -65,6 +65,7 @@ test("legacy and scoped endpoints both keep the Music V2 tool surface", async ()
   const required = [
     "netease_together_now",
     "netease_together_realtime_status",
+    "netease_together_leave",
     "netease_together_pause",
     "netease_together_resume",
     "netease_together_goto",
@@ -79,6 +80,7 @@ test("legacy and scoped endpoints both keep the Music V2 tool surface", async ()
     "cove_bridge_dismissed",
     "cove_bridge_release",
     "cove_bridge_wait",
+    "cove_bridge_wait_ack",
   ];
   await withServer(async (base) => {
     for (const path of ["/mcp", "/mcp/music"]) {

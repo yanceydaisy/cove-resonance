@@ -76,7 +76,7 @@ test("long-wait returns an already pending Music event immediately", async () =>
     assert.equal(result.source, "netease.playback");
     assert.ok(elapsedMs < 1000, "pending event should not wait for the full timeout");
 
-    await callTool(base, "cove_bridge_delivered", { eventId: "wait-immediate-1" }, 2);
+    await callTool(base, "cove_bridge_wait_ack", { eventId: "wait-immediate-1" }, 2);
   });
 });
 

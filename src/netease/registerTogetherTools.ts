@@ -110,6 +110,38 @@ export function registerNeteaseTogetherTools(
     },
   );
 
+  server.registerTool(
+    "netease_together_leave",
+    {
+      title: "Leave NetEase Together",
+      description:
+        "End Cove's current NetEase Listen Together room, confirm authoritative room exit, "
+        + "disconnect realtime state, and return the worker to waiting for invitations. "
+        + "If Cove is already out of Together, this is a confirmed no-op.",
+      inputSchema: {},
+      outputSchema: {
+        ok: z.literal(true),
+        ended: z.boolean(),
+        alreadyOut: z.boolean(),
+        roomId: z.string().nullable(),
+        confirmedAt: z.string(),
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: true,
+        openWorldHint: true,
+        idempotentHint: true,
+      },
+    },
+    async () => {
+      const result = await togetherWorker.leaveTogether();
+      return {
+        structuredContent: result,
+        content: [{ type: "text", text: JSON.stringify(result) }],
+      };
+    },
+  );
+
   const playbackControlOutputSchema = {
     ok: z.literal(true),
     confirmed: z.literal(true),
