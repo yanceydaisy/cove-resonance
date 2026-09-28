@@ -1,10 +1,22 @@
 # Minimal Listener Protocol — 纯轮询基线
 
-这份文件只描述 **Cove Resonance 最小 Host Listener 协议**。
+这份文件描述 **Cove Resonance 的 Widget / Host-injection Listener 最小协议**。
 
-它故意不依赖 SSE、WebSocket、Push、后台通知或任何特定 AI 客户端能力。
+V2 正式部署现在有两条可选监听路线：
 
-如果你正在适配一个能力未知的新客户端，先实现这一版。跑通后再加 realtime wake。
+1. **Widget Listener**：`sync → Host 注入消息 → delivered / dismissed`
+2. **Long-wait MCP**：`cove_bridge_wait → wait_ack → reply → next wait`
+
+两条路线共用同一个 Bridge Queue，**正式使用时二选一，不要同时运行**。
+
+本文件只讲第一条路线的最小可移植协议。Long-wait 的实现和边界见 [LONG_WAIT_MCP_EXPERIMENT.zh-CN.md](LONG_WAIT_MCP_EXPERIMENT.zh-CN.md)。
+
+截至 2026-09-28 的 ChatGPT 实测：
+
+- Widget Listener：网页端需要人工确认，桌面端当前不可用，手机端（iOS）可用；
+- Long-wait MCP：网页 / 桌面 / 手机均已跑通。
+
+如果你正在适配一个新的 Host，而且它不适合主动注入 `ui/message`，应优先评估 Long-wait，而不是强行复刻 Widget。
 
 ---
 
@@ -371,7 +383,7 @@ interface WakeAdapter {
 
 ---
 
-## 12. 当前 ChatGPT MCP Apps 实现
+## 12. 当前 ChatGPT MCP Apps Widget 实现
 
 当前参考实现：
 
@@ -404,3 +416,36 @@ EventSource wake → syncOnce()
 ```
 
 Bridge Core 对两种模式完全相同。
+
+
+---
+
+## 13. 与 Long-wait MCP 的边界
+
+Widget / Host-injection 路线：
+
+```text
+外部事件先发生
+→ wake / sync
+→ Host 注入一条新消息
+→ 开启新的模型处理
+```
+
+Long-wait 路线：
+
+```text
+用户先开始一个模型 turn
+→ cove_bridge_wait 挂起
+→ 未来事件到达
+→ tool result 返回
+→ 同一个 turn 继续
+```
+
+所以两者不是“同一个 Listener 的两种传输协议”，而是 **两种不同的 Host dispatch 方式**。
+
+选择原则：
+
+- Host 能可靠主动注入消息：Widget Listener 可用；
+- Host 对 `ui/message` 有人工确认、限制或不支持：优先 Long-wait；
+- 需要网页 / 桌面 / 手机多端统一：当前优先 Long-wait；
+- 不论哪种路线，Queue、事件身份、ACK、reply route 和 backpressure 语义都不能绕开。
