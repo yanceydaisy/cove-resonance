@@ -538,7 +538,7 @@ Listener 是 Host Adapter。
 
 **[MINIMAL_LISTENER_PROTOCOL.md](MINIMAL_LISTENER_PROTOCOL.md)**
 
-## 5.1 Level 0：手动 sync
+## 5.2 Level 0：手动 sync
 
 能力最弱的 Host 甚至不需要 timer：
 
@@ -549,7 +549,7 @@ Listener 是 Host Adapter。
 
 只要这一层能跑通，就已经能验证 Queue、reservation、Host dispatch、ACK 和 routed reply。
 
-## 5.2 Level 1：纯轮询 Listener
+## 5.3 Level 1：纯轮询 Listener
 
 最基础实现：
 
@@ -565,7 +565,7 @@ setInterval(() => {
 
 轮询间隔可以按客户端限制调整。它只影响延迟，不改变 Queue / reply / dedupe 的正确性。
 
-## 5.3 Level 2：Wake + Pull
+## 5.4 Level 2：Wake + Pull
 
 纯轮询跑通后，再加：
 
@@ -593,6 +593,37 @@ Wake = 低延迟加速
 一句话：
 
 > push for latency, pull for correctness.
+
+---
+
+## 5.5 Long-wait MCP：另一条正式 dispatch 路径
+
+核心文件：
+
+```text
+src/bridge/registerWaitTool.ts
+```
+
+Long-wait 不调用 `ui/message`。它让一个已经开始的模型 turn 等待 Bridge Queue 的未来事件：
+
+```text
+用户明确开始监听
+→ cove_bridge_wait
+→ reserve event
+→ tool result 返回
+→ cove_bridge_wait_ack
+→ 处理事件
+→ required reply（如有）
+→ next wait
+```
+
+它仍然保留 Queue ordering、eventId、ACK、reply route、reply dedupe 和 backpressure。
+
+它解决的是 Host dispatch 限制，不是后台常驻问题。没有运行中的模型 turn 时，Long-wait 不会凭空启动新 turn。
+
+更完整说明见：
+
+**[LONG_WAIT_MCP_EXPERIMENT.zh-CN.md](LONG_WAIT_MCP_EXPERIMENT.zh-CN.md)**
 
 ---
 
@@ -744,7 +775,9 @@ ui/message handoff
 └─ pre-handoff failure → cove_bridge_release
 ```
 
-不同 Host 对 `ui/message` 的交互可以不同。有的 Host 直接接受，有的 Host 会弹出人工确认；这个差异属于 Host adapter，不应该改写 Queue / reply 协议。
+不同 Host 对 `ui/message` 的交互可以不同，这个差异属于 Host adapter，不应该改写 Queue / reply 协议。
+
+截至 2026-09-28，当前 ChatGPT 实测是：网页端会弹出人工确认；桌面端这条 Widget 投递路线不可用；手机端（iOS）可用。如果目标 Host 不适合这条路线，优先选择 Long-wait，而不是修改 Queue Core 去迎合 Host。
 
 ## handoff 前失败
 
