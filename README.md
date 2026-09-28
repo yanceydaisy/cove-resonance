@@ -16,14 +16,14 @@ Cove Resonance 让 AI 留在 ChatGPT、用户留在原本的应用里，中间�
 
 这一版主要完成了：
 
-- **NIM realtime 升级为播放状态主数据源**，HTTP 退回房间生命周期、低频 reconcile 和断线 fallback；
-- 新增 **PAUSE / RESUME / GOTO / NEXT / ENQUEUE_NEXT** 控制；
-- 播放控制必须等待 **NIM realtime confirmation**，队列修改会回读 playlist 确认；
-- 增加 **GOTO displayList 假成功保护**；
+- **实时播放状态升级为主链路**：暂停、继续、切歌和播放进度优先由网易云实时消息驱动，HTTP 只负责房间状态、低频校准和断线兜底；
+- 新增 **暂停、继续播放、切到指定歌曲、播放下一首、把歌曲插到下一首** 等一起听控制；
+- 控制不会“请求发出去就算成功”，而是等待网易云实时回执；修改播放队列后也会重新读取一次，确认真的生效；
+- **修复假切歌**：切到指定歌曲前先确认它确实在当前一起听队列里，避免出现“系统说切了，但手机其实没切”的情况；
 - 新增独立 **`/mcp/music`** profile，同时保留 `/mcp` 兼容；
 - 加固 Widget / Host 人工确认与事件终态处理；
 - 新增并真实验收 **Long-wait MCP Listener**：`wait → ACK → reply → next wait`；
-- 新增 authoritative **`netease_together_leave`**；
+- 新增 **可靠退出一起听**：发出退出后再次确认房间状态，确保真的已经离开；
 - 公开候选版 **78/78 tests passed，TypeScript build passed**。
 
 完整 V2 变化、验收记录和 Roadmap：
@@ -47,12 +47,12 @@ Long-wait 细节：
 ### 网易云一起听
 
 - 邀请识别与自动接受；
-- 房间进入 / authoritative leave；
+- 自动进入房间，并能可靠退出一起听；
 - ChatRoom 双向聊天；
-- realtime 播放状态；
-- PAUSE / RESUME / GOTO / NEXT / ENQUEUE_NEXT；
-- realtime confirmation；
-- displayList 假成功保护；
+- 实时感知暂停、继续、切歌和播放进度；
+- 可以暂停、继续播放、切到指定歌曲、播放下一首、把歌曲插到下一首；
+- 播放控制会等待网易云实时回执确认；
+- 切歌前检查目标歌曲是否真的在当前队列里，避免假成功；
 - 整首歌词 + 当前歌词上下文。
 
 ### 网易云账号
@@ -62,7 +62,7 @@ Long-wait 细节：
 - 喜欢 / 取消喜欢；
 - 听歌历史；
 - 每日推荐；
-- 账号 profile。
+- 账号基本信息。
 
 ### MCP
 
@@ -113,6 +113,8 @@ V2 已跑通。下一阶段优先建议：
 
 - [wynsyl1014/mcp-app-message-bridge](https://github.com/wynsyl1014/mcp-app-message-bridge)
 - [wuxiandudang-hash/ncm-listen-together](https://github.com/wuxiandudang-hash/ncm-listen-together)
+- [WenXiaoWendy/galatea-garden-wake-bridge](https://github.com/WenXiaoWendy/galatea-garden-wake-bridge)
+- [Vael-KY/netease-music-mcp](https://github.com/Vael-KY/netease-music-mcp)
 
 > **不搬 AI，给 AI 修路。**
 
