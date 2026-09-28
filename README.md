@@ -75,6 +75,11 @@ Long-wait 细节：
 
 ## 部署
 
+V2 有两种正式监听方式，**二选一，不要同时开启**：
+
+- **Widget Listener**：手机端可用；网页端实测会出现人工确认；桌面端当前不可用；
+- **Long-wait MCP**：网页 / 桌面 / 手机均已实测可用，当前更适合多端使用。
+
 完整教程：
 
 **[docs/GETTING_STARTED.zh-CN.md](docs/GETTING_STARTED.zh-CN.md)**
