@@ -6,26 +6,31 @@
 
 你好，我是 **Cove**。
 
-Cove Resonance 让 AI 留在 ChatGPT、用户留在原本的应用里，中间用 Bridge 把事件、状态和回复真正接通。
+Cove Resonance 让 AI 留在 ChatGPT、用户留在原本的应用里，中间用 Bridge 把外部事件、实时状态和回复真正接通。
 
 我们最早从网易云「一起听」开始：听见聊天室消息、知道正在播什么、读歌词、控制播放，再把回复沿原路送回去。
 
 ## V2 更新
 
-V2 在上一版公开 Music V2 基础上，完成了最后几条关键链路：
+这里的 V2 是相对最初公开版本 **`v1-public-preview`** 而言。
 
-- **Long-wait MCP Listener** 正式通过真实 ChatGPT Host 验收；
-- 新增 `cove_bridge_wait_ack`，把模型侧 ACK 与 Widget ACK 分开；
-- required reply 完成 `wait → ACK → reply → next wait` 闭环；
-- 新增 authoritative `netease_together_leave`；
-- 已处理事件不会在重新监听后重复释放；
-- 公开候选分支 **78/78 tests passed，TypeScript build passed**。
+这一版主要完成了：
 
-详细更新、验收记录与 Roadmap：
+- **NIM realtime 升级为播放状态主数据源**，HTTP 退回房间生命周期、低频 reconcile 和断线 fallback；
+- 新增 **PAUSE / RESUME / GOTO / NEXT / ENQUEUE_NEXT** 控制；
+- 播放控制必须等待 **NIM realtime confirmation**，队列修改会回读 playlist 确认；
+- 增加 **GOTO displayList 假成功保护**；
+- 新增独立 **`/mcp/music`** profile，同时保留 `/mcp` 兼容；
+- 加固 Widget / Host 人工确认与事件终态处理；
+- 新增并真实验收 **Long-wait MCP Listener**：`wait → ACK → reply → next wait`；
+- 新增 authoritative **`netease_together_leave`**；
+- 公开候选版 **78/78 tests passed，TypeScript build passed**。
+
+完整 V2 变化、验收记录和 Roadmap：
 
 **[docs/V2.zh-CN.md](docs/V2.zh-CN.md)**
 
-Long-wait 机制：
+Long-wait 细节：
 
 **[docs/LONG_WAIT_MCP_EXPERIMENT.zh-CN.md](docs/LONG_WAIT_MCP_EXPERIMENT.zh-CN.md)**
 
@@ -36,19 +41,18 @@ Long-wait 机制：
 - Conversation / State 事件；
 - Queue、reserve / release / ACK；
 - required reply backpressure；
-- source/profile filter；
 - routed reply、去重；
-- Widget / SSE / poll / Long-wait Listener。
+- poll / SSE / Widget / Long-wait Listener。
 
 ### 网易云一起听
 
 - 邀请识别与自动接受；
-- 房间进入 / 退出；
+- 房间进入 / authoritative leave；
 - ChatRoom 双向聊天；
-- PLAY / PAUSE / GOTO / PROGRESS 实时状态；
-- PAUSE / RESUME / GOTO / NEXT / ENQUEUE_NEXT 控制；
-- NIM realtime confirmation；
-- GOTO displayList 假成功保护；
+- realtime 播放状态；
+- PAUSE / RESUME / GOTO / NEXT / ENQUEUE_NEXT；
+- realtime confirmation；
+- displayList 假成功保护；
 - 整首歌词 + 当前歌词上下文。
 
 ### 网易云账号
@@ -89,21 +93,13 @@ npm test
 npm run build
 ```
 
-至少配置：
-
-```dotenv
-BRIDGE_PUBLIC_ORIGIN=https://bridge.example.com
-NETEASE_COOKIE=MUSIC_U=...
-TOGETHER_ENABLED=true
-```
-
 ## 下一步
 
-V2 已跑通，下一阶段优先建议：
+V2 已跑通。下一阶段优先建议：
 
 **SQLite 持久化 Queue → 重启恢复 / reservation lease → Listener watchdog → multi-listener ownership → observability → 更简单的部署。**
 
-详细设计见 **[V2 Roadmap](docs/V2.zh-CN.md#下一阶段建议优化)**。
+详细见 **[V2 Roadmap](docs/V2.zh-CN.md#下一阶段建议优化)**。
 
 ## 安全
 
